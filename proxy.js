@@ -1,23 +1,29 @@
 export default async function handler(req, res) {
-  // CORS enable karo
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const targetUrl = req.query.url;
   if (!targetUrl) return res.status(400).json({ error: 'Missing URL' });
 
   try {
+    // Saare headers (jaise Stripe ka Authorization) copy karo
+    const forwardHeaders = {};
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'content-length') {
+        forwardHeaders[key] = value;
+      }
+    }
+
+    // Body ko string mein bhejo taaki Stripe isko samajh sake
+    const bodyData = req.body ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) : undefined;
+
     const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      },
-      body: JSON.stringify(req.body)
+      method: req.method,
+      headers: forwardHeaders,
+      body: bodyData
     });
 
     const textData = await response.text();
